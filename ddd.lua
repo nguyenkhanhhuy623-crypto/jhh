@@ -14,7 +14,6 @@ Workspace:FindFirstChild("FX")
 
 print("[Sinoracketeerin] Initializing...")
 
-PlayerGui:FindFirstChild("KeySys")
 if PlayerGui:FindFirstChild("KeySys") then
     PlayerGui.KeySys:Destroy()
 end
@@ -26,94 +25,6 @@ end
 
 
 -- =========================================================
--- KEY SYSTEM UI
--- =========================================================
-
-local KeySystemGui = Instance.new("ScreenGui")
-KeySystemGui.Name = "KeySys"
-KeySystemGui.ResetOnSpawn = false
-KeySystemGui.Parent = PlayerGui
-
-
-local KeySystemFrame = Instance.new("Frame")
-KeySystemFrame.Size = UDim2.new(0, 360, 0, 150)
-KeySystemFrame.Position = UDim2.new(0.5, -180, 0.5, -75)
-KeySystemFrame.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
-KeySystemFrame.BorderSizePixel = 0
-KeySystemFrame.Parent = KeySystemGui
-
-
-local KeySystemCorner = Instance.new("UICorner", KeySystemFrame)
-KeySystemCorner.CornerRadius = UDim.new(0, 10)
-
-
-local KeySystemTitle = Instance.new("TextLabel", KeySystemFrame)
-KeySystemTitle.Size = UDim2.new(1, 0, 0, 34)
-KeySystemTitle.Position = UDim2.new(0, 0, 0, 0)
-KeySystemTitle.BackgroundTransparency = 1
-KeySystemTitle.Font = Enum.Font.GothamBold
-KeySystemTitle.TextSize = 20
-KeySystemTitle.Text = "Key System"
-KeySystemTitle.TextColor3 = Color3.fromRGB(235, 235, 235)
-KeySystemTitle.TextXAlignment = Enum.TextXAlignment.Center
-
-
-local KeyInput = Instance.new("TextBox", KeySystemFrame)
-KeyInput.Size = UDim2.new(0.88, 0, 0, 36)
-KeyInput.Position = UDim2.new(0.06, 0, 0, 44)
-KeyInput.PlaceholderText = "Enter key"
-KeyInput.Font = Enum.Font.Gotham
-KeyInput.TextSize = 18
-KeyInput.TextColor3 = Color3.fromRGB(240, 240, 240)
-KeyInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-
-
-local KeyInputCorner = Instance.new("UICorner", KeyInput)
-KeyInputCorner.CornerRadius = UDim.new(0, 6)
-
-
-local CopyLinkButton = Instance.new("TextButton", KeySystemFrame)
-CopyLinkButton.Size = UDim2.new(0.44, -6, 0, 36)
-CopyLinkButton.Position = UDim2.new(0.06, 0, 0, 92)
-CopyLinkButton.Text = "Copy Link"
-CopyLinkButton.Font = Enum.Font.GothamBold
-CopyLinkButton.TextSize = 16
-CopyLinkButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CopyLinkButton.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-
-
-local CopyLinkCorner = Instance.new("UICorner", CopyLinkButton)
-CopyLinkCorner.CornerRadius = UDim.new(0, 6)
-
-
-local CheckKeyButton = Instance.new("TextButton", KeySystemFrame)
-CheckKeyButton.Size = UDim2.new(0.44, -6, 0, 36)
-CheckKeyButton.Position = UDim2.new(0.5, 6, 0, 92)
-CheckKeyButton.Text = "Check Key"
-CheckKeyButton.Font = Enum.Font.GothamBold
-CheckKeyButton.TextSize = 16
-CheckKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-CheckKeyButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-
-
-local CheckKeyCorner = Instance.new("UICorner", CheckKeyButton)
-CheckKeyCorner.CornerRadius = UDim.new(0, 6)
-
-
-CopyLinkButton.MouseButton1Click:Connect(function()
-    setclipboard("https://workink.net/23PG/7g2wlmp7")
-
-    CopyLinkButton.Text = "Copied"
-
-    task.delay(1.1, function()
-        local _ = CopyLinkButton.Parent
-
-        CopyLinkButton.Text = "Copy Link"
-    end)
-end)
-
-
--- =========================================================
 -- MAIN UI (BILLBOARD GUI - BAY THEO TRÁI CẦU)
 -- =========================================================
 
@@ -122,7 +33,7 @@ local MainGui = Instance.new("BillboardGui")
 MainGui.Name = "Sinoracketeerin"
 MainGui.ResetOnSpawn = false
 MainGui.Parent = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-MainGui.Enabled = false
+MainGui.Enabled = true
 MainGui.Size = UDim2.new(0, 330, 0, 360)
 MainGui.Adornee = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 MainGui.StudsOffset = Vector3.new(0, 3, 0) -- Đặt UI phía trên nhân vật
@@ -325,26 +236,6 @@ end)
 
 
 -- =========================================================
--- CHECK KEY
--- =========================================================
-
-CheckKeyButton.MouseButton1Click:Connect(function()
-    local key = KeyInput.Text
-    if key == "sinoracketeerin" then  -- Thay bằng key thật
-        KeySystemGui:Destroy()
-        MainGui.Enabled = true
-        print("[Sinoracketeerin] Key accepted!")
-    else
-        KeyInput.Text = "Invalid Key!"
-        task.delay(1, function()
-            KeyInput.Text = ""
-            KeyInput.PlaceholderText = "Enter key"
-        end)
-    end
-end)
-
-
--- =========================================================
 -- THEO DÕI NHÂN VẬT ĐỂ CẬP NHẬT BILLBOARD
 -- =========================================================
 
@@ -371,11 +262,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if input.KeyCode == Enum.KeyCode.RightControl then  -- Mở menu bằng Right Control
-        if KeySystemGui.Parent then
-            -- Nếu KeySystem vẫn còn, không làm gì
-            return
-        end
-        
         if MainGui and MainGui.Parent then
             MainGui.Enabled = not MainGui.Enabled
             print("[Sinoracketeerin] Menu toggled: " .. tostring(MainGui.Enabled))
