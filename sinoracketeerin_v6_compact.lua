@@ -1,0 +1,539 @@
+--[[
+	╔══════════════════════════════════════════════════════════╗
+	║   SINORACKETEERIN - PROFESSIONAL COMBAT SCRIPT           ║
+	║   Deobf by Hihi (@reknoname)                             ║
+	║   Upgraded v6: Compact Menu, Minimize, Seamless Hide     ║
+	╚══════════════════════════════════════════════════════════╝
+]]--
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Mouse = LocalPlayer:GetMouse()
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+print("[Sinoracketeerin] Initializing v6...")
+
+-- ========================================================================
+-- CORE SETTINGS
+-- ========================================================================
+
+local CONFIG = {
+	SCRIPT_VERSION = "6.0",
+	SPAM_F_INTERVAL = 0.02,
+	SPAM_E_INTERVAL = 0.02,
+	TELEPORT_DELAY = 0.5,
+	AUTO_PUNCH_POWER = {MIN = 40, MAX = 70},
+	PUNCH_COOLDOWN = 0.1,
+	RAGE_MODE_MULTIPLIER = 1.5,
+	MAX_VISIBLE_DISTANCE = 100,
+}
+
+-- ========================================================================
+-- FEATURE STATES
+-- ========================================================================
+
+local STATE = {
+	SpamFEnabled = true,
+	SpamEEnabled = true,
+	TeleportEnabled = false,
+	AutoPunchEnabled = false,
+	RageModeEnabled = false,
+	MenuVisible = true,
+	CurrentTab = "combat",
+	LastSpamF = 0,
+	LastSpamE = 0,
+	LastPunch = 0,
+	LastTeleport = 0,
+	PunchCount = 0,
+	TeleportCount = 0,
+	SessionTime = tick(),
+}
+
+-- ========================================================================
+-- KEYBINDS (RANDOMIZED)
+-- ========================================================================
+
+local KEYBIND_PRESETS = {
+	TOGGLE_MENU = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10"},
+	RAGE_MODE = {"R", "T", "Y", "U", "I", "O", "P"},
+	QUICK_PUNCH = {"Z", "X", "C", "V", "B", "N", "M"},
+	TELEPORT_NEAREST = {"V", "B", "N", "M", "G", "H", "J"},
+}
+
+local KEYBINDS = {
+	TOGGLE_MENU = Enum.KeyCode[KEYBIND_PRESETS.TOGGLE_MENU[math.random(1, #KEYBIND_PRESETS.TOGGLE_MENU)]],
+	RAGE_MODE = Enum.KeyCode[KEYBIND_PRESETS.RAGE_MODE[math.random(1, #KEYBIND_PRESETS.RAGE_MODE)]],
+	QUICK_PUNCH = Enum.KeyCode[KEYBIND_PRESETS.QUICK_PUNCH[math.random(1, #KEYBIND_PRESETS.QUICK_PUNCH)]],
+	TELEPORT_NEAREST = Enum.KeyCode[KEYBIND_PRESETS.TELEPORT_NEAREST[math.random(1, #KEYBIND_PRESETS.TELEPORT_NEAREST)]],
+}
+
+print("[Sinoracketeerin] Keybinds:")
+print("  Toggle Menu: " .. tostring(KEYBINDS.TOGGLE_MENU))
+print("  Rage Mode: " .. tostring(KEYBINDS.RAGE_MODE))
+print("  Teleport: " .. tostring(KEYBINDS.TELEPORT_NEAREST))
+
+-- ========================================================================
+-- CLEANUP
+-- ========================================================================
+
+local oldGui = PlayerGui:FindFirstChild("Sinoracketeerin")
+if oldGui then oldGui:Destroy() end
+
+-- ========================================================================
+-- MAIN GUI
+-- ========================================================================
+
+local MainGui = Instance.new("ScreenGui")
+MainGui.Name = "Sinoracketeerin"
+MainGui.ResetOnSpawn = false
+MainGui.Parent = PlayerGui
+MainGui.DisplayOrder = 100
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 380, 0, 480)
+MainFrame.Position = UDim2.new(0.5, -190, 0.5, -240)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = MainGui
+
+local CornerRadius = Instance.new("UICorner", MainFrame)
+CornerRadius.CornerRadius = UDim.new(0, 12)
+
+-- ========================================================================
+-- DRAGGABLE
+-- ========================================================================
+
+local Dragging = false
+local DragStart = nil
+local FrameStart = nil
+
+MainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		Dragging = true
+		DragStart = Mouse.Position
+		FrameStart = MainFrame.Position
+	end
+end)
+
+MainFrame.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		Dragging = false
+	end
+end)
+
+UserInputService.InputChanged:Connect(function()
+	if Dragging and DragStart and FrameStart then
+		local Delta = Mouse.Position - DragStart
+		MainFrame.Position = FrameStart + UDim2.new(0, Delta.X, 0, Delta.Y)
+	end
+end)
+
+-- ========================================================================
+-- HEADER BAR
+-- ========================================================================
+
+local HeaderBar = Instance.new("Frame", MainFrame)
+HeaderBar.Size = UDim2.new(1, 0, 0, 50)
+HeaderBar.Position = UDim2.new(0, 0, 0, 0)
+HeaderBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+HeaderBar.BorderSizePixel = 0
+
+local HeaderCorner = Instance.new("UICorner", HeaderBar)
+HeaderCorner.CornerRadius = UDim.new(0, 12)
+
+-- Title
+local Title = Instance.new("TextLabel", HeaderBar)
+Title.Size = UDim2.new(1, -90, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 22
+Title.Text = "⚔ SINO v" .. CONFIG.SCRIPT_VERSION
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.TextColor3 = Color3.fromRGB(255, 100, 100)
+
+-- Status Light
+local StatusLight = Instance.new("Frame", HeaderBar)
+StatusLight.Size = UDim2.new(0, 10, 0, 10)
+StatusLight.Position = UDim2.new(1, -80, 0, 9)
+StatusLight.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+StatusLight.BorderSizePixel = 0
+
+Instance.new("UICorner", StatusLight).CornerRadius = UDim.new(1, 0)
+
+-- Minimize Button
+local MinimizeBtn = Instance.new("TextButton", HeaderBar)
+MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+MinimizeBtn.Position = UDim2.new(1, -50, 0, 10)
+MinimizeBtn.Text = "−"
+MinimizeBtn.Font = Enum.Font.GothamBold
+MinimizeBtn.TextSize = 20
+MinimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+MinimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeBtn.BorderSizePixel = 0
+
+Instance.new("UICorner", MinimizeBtn).CornerRadius = UDim.new(0, 4)
+
+MinimizeBtn.MouseButton1Click:Connect(function()
+	STATE.MenuVisible = false
+	MainGui.Enabled = false
+	print("[Sinoracketeerin] Hidden. Press " .. tostring(KEYBINDS.TOGGLE_MENU) .. " to show.")
+end)
+
+-- Close Button
+local CloseBtn = Instance.new("TextButton", HeaderBar)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -10, 0, 10)
+CloseBtn.Text = "✕"
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 16
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 30, 30)
+CloseBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseBtn.BorderSizePixel = 0
+
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 4)
+
+CloseBtn.MouseButton1Click:Connect(function()
+	MainGui:Destroy()
+	print("[Sinoracketeerin] Closed.")
+end)
+
+-- ========================================================================
+-- TAB NAVIGATION
+-- ========================================================================
+
+local TabContainer = Instance.new("Frame", MainFrame)
+TabContainer.Size = UDim2.new(1, 0, 0, 40)
+TabContainer.Position = UDim2.new(0, 0, 0, 50)
+TabContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+TabContainer.BorderSizePixel = 0
+
+local TABS = {
+	{name = "COMBAT", id = "combat"},
+	{name = "AUTO", id = "auto"},
+	{name = "STATS", id = "stats"},
+	{name = "SETTINGS", id = "settings"},
+}
+
+local TabButtons = {}
+
+for i, tabData in ipairs(TABS) do
+	local TabBtn = Instance.new("TextButton", TabContainer)
+	TabBtn.Size = UDim2.new(0.25, -1, 1, 0)
+	TabBtn.Position = UDim2.new(0.25 * (i - 1), 0, 0, 0)
+	TabBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+	TabBtn.TextColor3 = Color3.fromRGB(100, 100, 100)
+	TabBtn.Font = Enum.Font.GothamBold
+	TabBtn.TextSize = 11
+	TabBtn.Text = tabData.name
+	TabBtn.BorderSizePixel = 0
+	
+	TabBtn.MouseButton1Click:Connect(function()
+		STATE.CurrentTab = tabData.id
+		RefreshUI()
+	end)
+	
+	TabButtons[tabData.id] = TabBtn
+end
+
+-- ========================================================================
+-- CONTENT AREA
+-- ========================================================================
+
+local ContentArea = Instance.new("Frame", MainFrame)
+ContentArea.Name = "ContentArea"
+ContentArea.Size = UDim2.new(1, 0, 1, -90)
+ContentArea.Position = UDim2.new(0, 0, 0, 90)
+ContentArea.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+ContentArea.BorderSizePixel = 0
+
+local ScrollList = Instance.new("ScrollingFrame", ContentArea)
+ScrollList.Size = UDim2.new(1, -8, 1, -8)
+ScrollList.Position = UDim2.new(0, 4, 0, 4)
+ScrollList.BackgroundTransparency = 1
+ScrollList.BorderSizePixel = 0
+ScrollList.ScrollBarThickness = 5
+ScrollList.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 60)
+
+local ListLayout = Instance.new("UIListLayout", ScrollList)
+ListLayout.Padding = UDim.new(0, 6)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- ========================================================================
+-- BUTTON FACTORY
+-- ========================================================================
+
+local ButtonCache = {}
+
+local function CreateToggleButton(label, enabled, callback, tab)
+	local Button = Instance.new("TextButton", ScrollList)
+	Button.Size = UDim2.new(1, 0, 0, 36)
+	Button.BackgroundColor3 = enabled and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(100, 50, 50)
+	Button.TextColor3 = Color3.fromRGB(255, 255, 255)
+	Button.Font = Enum.Font.GothamBold
+	Button.TextSize = 12
+	Button.Text = label .. (enabled and " [ON]" or " [OFF]")
+	Button.BorderSizePixel = 0
+	Button.Visible = (tab == STATE.CurrentTab)
+	
+	Instance.new("UICorner", Button).CornerRadius = UDim.new(0, 6)
+	
+	Button.MouseButton1Click:Connect(function()
+		enabled = not enabled
+		callback(enabled)
+		Button.Text = label .. (enabled and " [ON]" or " [OFF]")
+		Button.BackgroundColor3 = enabled and Color3.fromRGB(50, 100, 50) or Color3.fromRGB(100, 50, 50)
+	end)
+	
+	table.insert(ButtonCache, {button = Button, tab = tab})
+	return Button
+end
+
+local function CreateLabel(text, tab)
+	local Label = Instance.new("TextLabel", ScrollList)
+	Label.Size = UDim2.new(1, 0, 0, 24)
+	Label.BackgroundTransparency = 1
+	Label.Font = Enum.Font.Gotham
+	Label.TextSize = 11
+	Label.Text = text
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.TextColor3 = Color3.fromRGB(200, 200, 200)
+	Label.Visible = (tab == STATE.CurrentTab)
+	
+	table.insert(ButtonCache, {button = Label, tab = tab})
+	return Label
+end
+
+-- ========================================================================
+-- COMBAT TAB
+-- ========================================================================
+
+CreateLabel("SPAM & ATTACK", "combat")
+
+CreateToggleButton("Spam F (Pick)", STATE.SpamFEnabled, function(state)
+	STATE.SpamFEnabled = state
+end, "combat")
+
+CreateToggleButton("Spam E (Punch)", STATE.SpamEEnabled, function(state)
+	STATE.SpamEEnabled = state
+end, "combat")
+
+CreateToggleButton("Teleport", STATE.TeleportEnabled, function(state)
+	STATE.TeleportEnabled = state
+end, "combat")
+
+CreateToggleButton("Rage Mode", STATE.RageModeEnabled, function(state)
+	STATE.RageModeEnabled = state
+	if state then
+		StatusLight.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+	else
+		StatusLight.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+	end
+end, "combat")
+
+-- ========================================================================
+-- AUTO TAB
+-- ========================================================================
+
+CreateLabel("AUTOMATION", "auto")
+
+CreateToggleButton("Auto Punch", STATE.AutoPunchEnabled, function(state)
+	STATE.AutoPunchEnabled = state
+end, "auto")
+
+CreateToggleButton("Auto Dodge", false, function(state)
+end, "auto")
+
+CreateToggleButton("Auto Teleport", false, function(state)
+end, "auto")
+
+-- ========================================================================
+-- STATS TAB
+-- ========================================================================
+
+CreateLabel("SESSION STATS", "stats")
+
+local PunchCountLabel = CreateLabel("Punches: 0", "stats")
+local TeleportCountLabel = CreateLabel("Teleports: 0", "stats")
+local SessionTimeLabel = CreateLabel("Session: 0s", "stats")
+
+task.spawn(function()
+	while true do
+		if STATE.CurrentTab == "stats" and STATE.MenuVisible then
+			PunchCountLabel.Text = "Punches: " .. STATE.PunchCount
+			TeleportCountLabel.Text = "Teleports: " .. STATE.TeleportCount
+			local elapsed = math.floor(tick() - STATE.SessionTime)
+			SessionTimeLabel.Text = "Session: " .. elapsed .. "s"
+		end
+		task.wait(1)
+	end
+end)
+
+CreateLabel("Status: ACTIVE ✓", "stats")
+
+-- ========================================================================
+-- SETTINGS TAB
+-- ========================================================================
+
+CreateLabel("CONFIGURATION", "settings")
+CreateLabel("F Interval: " .. CONFIG.SPAM_F_INTERVAL .. "s", "settings")
+CreateLabel("E Interval: " .. CONFIG.SPAM_E_INTERVAL .. "s", "settings")
+CreateLabel("TP Delay: " .. CONFIG.TELEPORT_DELAY .. "s", "settings")
+CreateLabel(" ", "settings")
+CreateLabel("v" .. CONFIG.SCRIPT_VERSION .. " by Sino", "settings")
+CreateLabel("Upgraded v6 Compact", "settings")
+
+-- ========================================================================
+-- REFRESH UI
+-- ========================================================================
+
+function RefreshUI()
+	for _, btn in ipairs(TabButtons) do
+		btn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+		btn.TextColor3 = Color3.fromRGB(100, 100, 100)
+	end
+	
+	if TabButtons[STATE.CurrentTab] then
+		TabButtons[STATE.CurrentTab].BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+		TabButtons[STATE.CurrentTab].TextColor3 = Color3.fromRGB(255, 150, 80)
+	end
+	
+	for _, item in ipairs(ButtonCache) do
+		item.button.Visible = (item.tab == STATE.CurrentTab)
+	end
+end
+
+-- ========================================================================
+-- SPAM FUNCTIONS
+-- ========================================================================
+
+local function SpamF()
+	local now = tick()
+	if now - STATE.LastSpamF < CONFIG.SPAM_F_INTERVAL then return end
+	
+	VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+	task.wait(0.01)
+	VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+	
+	STATE.LastSpamF = now
+end
+
+local function SpamE()
+	local now = tick()
+	if now - STATE.LastSpamE < CONFIG.SPAM_E_INTERVAL then return end
+	
+	VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+	task.wait(0.01)
+	VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+	
+	STATE.LastSpamE = now
+	STATE.PunchCount = STATE.PunchCount + 1
+end
+
+-- ========================================================================
+-- TELEPORT
+-- ========================================================================
+
+local function TeleportNearest()
+	local myChar = LocalPlayer.Character
+	if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+	
+	local nearest = nil
+	local nearestDist = CONFIG.MAX_VISIBLE_DISTANCE
+	
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (myChar.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+			if dist < nearestDist then
+				nearestDist = dist
+				nearest = player.Character
+			end
+		end
+	end
+	
+	if nearest then
+		local targetPos = nearest.HumanoidRootPart.Position
+		myChar.HumanoidRootPart.CFrame = CFrame.new(targetPos + Vector3.new(0, 3, 0))
+		STATE.TeleportCount = STATE.TeleportCount + 1
+		task.wait(CONFIG.TELEPORT_DELAY)
+	end
+end
+
+-- ========================================================================
+-- AUTO PUNCH
+-- ========================================================================
+
+local function AutoPunch()
+	if not STATE.AutoPunchEnabled then return end
+	
+	local myChar = LocalPlayer.Character
+	if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+	
+	for _, player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+			local dist = (myChar.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+			if dist < 20 then
+				SpamE()
+				return
+			end
+		end
+	end
+end
+
+-- ========================================================================
+-- INPUT
+-- ========================================================================
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.KeyCode == KEYBINDS.TOGGLE_MENU then
+		STATE.MenuVisible = not STATE.MenuVisible
+		MainGui.Enabled = STATE.MenuVisible
+	end
+	
+	if input.KeyCode == KEYBINDS.RAGE_MODE then
+		STATE.RageModeEnabled = not STATE.RageModeEnabled
+	end
+	
+	if input.KeyCode == KEYBINDS.TELEPORT_NEAREST and STATE.TeleportEnabled then
+		TeleportNearest()
+	end
+	
+	if input.KeyCode == KEYBINDS.QUICK_PUNCH then
+		SpamE()
+	end
+end)
+
+-- ========================================================================
+-- MAIN LOOP - RUNS ALWAYS, EVEN WHEN MENU HIDDEN
+-- ========================================================================
+
+RunService.Heartbeat:Connect(function()
+	if STATE.SpamFEnabled then
+		SpamF()
+	end
+	
+	if STATE.SpamEEnabled then
+		SpamE()
+	end
+	
+	if STATE.AutoPunchEnabled then
+		AutoPunch()
+	end
+end)
+
+-- ========================================================================
+-- READY
+-- ========================================================================
+
+print("╔════════════════════════════════════════════════╗")
+print("║     SINORACKETEERIN v" .. CONFIG.SCRIPT_VERSION .. " - LOADED ✓          ║")
+print("║     Compact Menu | Always Running | Ready      ║")
+print("╚════════════════════════════════════════════════╝")
